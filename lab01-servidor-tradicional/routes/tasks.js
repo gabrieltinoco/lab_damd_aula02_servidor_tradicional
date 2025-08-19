@@ -77,7 +77,7 @@ router.post('/', validate('task'), async (req, res) => {
 });
 
 // Buscar tarefa por ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', validate('task'), async (req, res) => {
     try {
         const row = await database.get(
             'SELECT * FROM tasks WHERE id = ? AND userId = ?',
