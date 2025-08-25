@@ -43,6 +43,7 @@ router.get('/', async (req, res) => {
         const page = parseInt(req.query.page, 10) || 1;
         const limit = parseInt(req.query.limit, 10) || 10;
         const offset = (page - 1) * limit;
+        const { startDate, endDate } = req.query;
 
         let sql = 'SELECT * FROM tasks WHERE userId = ?';
         let countSql = 'SELECT COUNT(*) as total FROM tasks WHERE userId = ?';
@@ -64,6 +65,31 @@ router.get('/', async (req, res) => {
             params.push(priority);
             countParams.push(priority);
         }
+
+        if (startDate) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+                return res.status(400).json({ success: false, message: 'Formato de startDate inválido. Use YYYY-MM-DD.' });
+            }
+            // Adiciona a condição para a data de início (>=) tanto na query de dados quanto na de contagem.
+            sql += ' AND createdAt >= ?';
+            countSql += ' AND createdAt >= ?';
+            // Adiciona a hora para garantir que o dia inteiro seja incluído.
+            params.push(`${startDate} 00:00:00`);
+            countParams.push(`${startDate} 00:00:00`);
+        }
+
+        if (endDate) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+                return res.status(400).json({ success: false, message: 'Formato de endDate inválido. Use YYYY-MM-DD.' });
+            }
+            // Adiciona a condição para a data de fim (<=) em ambas as queries.
+            sql += ' AND createdAt <= ?';
+            countSql += ' AND createdAt <= ?';
+            // Adiciona a hora para garantir que o dia inteiro seja incluído.
+            params.push(`${endDate} 23:59:59`);
+            countParams.push(`${endDate} 23:59:59`);
+        }
+
 
         sql += ' ORDER BY createdAt DESC LIMIT ? OFFSET ?';
         params.push(limit, offset);
