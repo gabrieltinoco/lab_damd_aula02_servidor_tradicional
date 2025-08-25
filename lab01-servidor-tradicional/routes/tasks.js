@@ -161,7 +161,7 @@ router.post('/', validate('task'), async (req, res) => {
 });
 
 // Buscar tarefa por ID
-router.get('/:id', validate('task'), async (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
         const row = await database.get(
             'SELECT * FROM tasks WHERE id = ? AND userId = ?',
@@ -235,6 +235,8 @@ router.delete('/:id', async (req, res) => {
                 message: 'Tarefa não encontrada'
             });
         }
+
+        clearUserTaskCache(req.user.id);
 
         res.json({
             success: true,
