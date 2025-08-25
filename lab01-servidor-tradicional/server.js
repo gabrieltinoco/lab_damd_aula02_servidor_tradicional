@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
+const logger = require('./config/logger');
 const config = require('./config/database');
 const database = require('./database/database');
 const authRoutes = require('./routes/auth');
@@ -29,9 +30,13 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Logging de requisições
+
 app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    // Loga a requisição recebida com informações adicionais
+    logger.info(`Request Received: ${req.method} ${req.url}`, {
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+    });
     next();
 });
 
@@ -71,7 +76,12 @@ app.use((req, res) => {
 
 // Error handler global
 app.use((error, req, res, next) => {
-    console.error('Erro:', error);
+    logger.error('Unhandled Error:', {
+        message: error.message,
+        stack: error.stack, // O stack trace é fundamental para o debug
+        url: req.originalUrl,
+        method: req.method
+    });
     res.status(500).json({
         success: false,
         message: 'Erro interno do servidor'

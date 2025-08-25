@@ -15,6 +15,7 @@
   "author": "Aluno PUC Minas",
   "license": "MIT",
   "dependencies": {
-    "memory-cache": "^0.2.0"
+    "memory-cache": "^0.2.0",
+    "winston": "^3.17.0"
   }
 }
