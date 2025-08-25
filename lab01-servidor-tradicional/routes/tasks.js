@@ -4,14 +4,38 @@ const Task = require('../models/Task');
 const database = require('../database/database');
 const { authMiddleware } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
+const cache = require('memory-cache');
 
 const router = express.Router();
 
 // Todas as rotas requerem autenticação
 router.use(authMiddleware);
 
+const clearUserTaskCache = (userId) => {
+    const keys = cache.keys();
+    keys.forEach(key => {
+        if (key.startsWith(`tasks_user_${userId}`)) {
+            cache.del(key);
+            console.log(`Cache cleared for key: ${key}`);
+        }
+    });
+};
+
 // Listar tarefas
 router.get('/', async (req, res) => {
+
+    // 1. Criar uma chave de cache única baseada no ID do usuário e nos query params
+    const cacheKey = `tasks_user_${req.user.id}_${JSON.stringify(req.query)}`;
+
+    // 2. Tenta obter os dados do cache
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) {
+        console.log(`Cache HIT para a chave: ${cacheKey}`);
+        return res.json(cachedData);
+    }
+
+    console.log(`Cache MISS para a chave: ${cacheKey}`);
+
     try {
         const { completed, priority } = req.query;
         const page = parseInt(req.query.page, 10) || 1;
@@ -51,7 +75,7 @@ router.get('/', async (req, res) => {
         const totalItems = totalResult.total;
         const totalPages = Math.ceil(totalItems / limit);
 
-        res.json({
+        const responseData = {
             success: true,
             data: tasks.map(task => task.toJSON()),
             meta: {
@@ -60,7 +84,11 @@ router.get('/', async (req, res) => {
                 currentPage: page,
                 itemsPerPage: limit
             }
-        });
+        };
+
+        cache.put(cacheKey, responseData, 300000);
+
+        res.json(responseData);
 
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro interno do servidor' });
@@ -91,6 +119,8 @@ router.post('/', validate('task'), async (req, res) => {
             'INSERT INTO tasks (id, title, description, priority, userId) VALUES (?, ?, ?, ?, ?)',
             [task.id, task.title, task.description, task.priority, task.userId]
         );
+
+        clearUserTaskCache(req.user.id);
 
         res.status(201).json({
             success: true,
@@ -150,6 +180,8 @@ router.put('/:id', async (req, res) => {
         );
 
         const task = new Task({ ...updatedRow, completed: updatedRow.completed === 1 });
+
+        clearUserTaskCache(req.user.id);
 
         res.json({
             success: true,

@@ -7,7 +7,14 @@
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
-  "keywords": ["sistemas-distribuidos", "cliente-servidor", "rest-api"],
+  "keywords": [
+    "sistemas-distribuidos",
+    "cliente-servidor",
+    "rest-api"
+  ],
   "author": "Aluno PUC Minas",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "memory-cache": "^0.2.0"
+  }
 }
