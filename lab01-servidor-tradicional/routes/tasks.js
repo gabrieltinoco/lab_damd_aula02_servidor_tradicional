@@ -14,28 +14,54 @@ router.use(authMiddleware);
 router.get('/', async (req, res) => {
     try {
         const { completed, priority } = req.query;
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 10;
+        const offset = (page - 1) * limit;
+
         let sql = 'SELECT * FROM tasks WHERE userId = ?';
+        let countSql = 'SELECT COUNT(*) as total FROM tasks WHERE userId = ?';
         const params = [req.user.id];
+        const countParams = [req.user.id];
+
 
         if (completed !== undefined) {
             sql += ' AND completed = ?';
-            params.push(completed === 'true' ? 1 : 0);
+            countSql += ' AND completed = ?';
+            const completedValue = completed === 'true' ? 1 : 0;
+            params.push(completedValue);
+            countParams.push(completedValue);
         }
-        
+
         if (priority) {
             sql += ' AND priority = ?';
+            countSql += ' AND priority = ?';
             params.push(priority);
+            countParams.push(priority);
         }
 
-        sql += ' ORDER BY createdAt DESC';
+        sql += ' ORDER BY createdAt DESC LIMIT ? OFFSET ?';
+        params.push(limit, offset);
 
-        const rows = await database.all(sql, params);
-        const tasks = rows.map(row => new Task({...row, completed: row.completed === 1}));
+        const [rows, totalResult] = await Promise.all([
+            database.all(sql, params),
+            database.get(countSql, countParams)
+        ]);
+
+        const tasks = rows.map(row => new Task({ ...row, completed: row.completed === 1 }));
+        const totalItems = totalResult.total;
+        const totalPages = Math.ceil(totalItems / limit);
 
         res.json({
             success: true,
-            data: tasks.map(task => task.toJSON())
+            data: tasks.map(task => task.toJSON()),
+            meta: {
+                totalItems,
+                totalPages,
+                currentPage: page,
+                itemsPerPage: limit
+            }
         });
+
     } catch (error) {
         res.status(500).json({ success: false, message: 'Erro interno do servidor' });
     }
@@ -44,15 +70,15 @@ router.get('/', async (req, res) => {
 // Criar tarefa
 router.post('/', validate('task'), async (req, res) => {
     try {
-        const taskData = { 
-            id: uuidv4(), 
-            ...req.body, 
-            userId: req.user.id 
+        const taskData = {
+            id: uuidv4(),
+            ...req.body,
+            userId: req.user.id
         };
-        
+
         const task = new Task(taskData);
         const validation = task.validate();
-        
+
         if (!validation.isValid) {
             return res.status(400).json({
                 success: false,
@@ -91,7 +117,7 @@ router.get('/:id', validate('task'), async (req, res) => {
             });
         }
 
-        const task = new Task({...row, completed: row.completed === 1});
+        const task = new Task({ ...row, completed: row.completed === 1 });
         res.json({
             success: true,
             data: task.toJSON()
@@ -105,7 +131,7 @@ router.get('/:id', validate('task'), async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         const { title, description, completed, priority } = req.body;
-        
+
         const result = await database.run(
             'UPDATE tasks SET title = ?, description = ?, completed = ?, priority = ? WHERE id = ? AND userId = ?',
             [title, description, completed ? 1 : 0, priority, req.params.id, req.user.id]
@@ -123,8 +149,8 @@ router.put('/:id', async (req, res) => {
             [req.params.id, req.user.id]
         );
 
-        const task = new Task({...updatedRow, completed: updatedRow.completed === 1});
-        
+        const task = new Task({ ...updatedRow, completed: updatedRow.completed === 1 });
+
         res.json({
             success: true,
             message: 'Tarefa atualizada com sucesso',
