@@ -260,3 +260,25 @@ Endpoints para gerenciar as tarefas (operações CRUD). Todos os endpoints abaix
 }
 ```
 
+## As principais limitações identificadas neste projeto são:
+
+### 1. Ponto Único de Falha
+
+A arquitetura implementada possui um ponto único de falha.
+O que significa: No projeto, tanto o servidor de aplicação (o processo `server.js`) quanto o banco de dados (o arquivo `tasks.db`do SQLite) rodam em uma única instância. Se o servidor onde a aplicação está hospedada falhar, ou se o processo do Node.js for interrompido por um erro não tratado, todo o sistema de gerenciamento de tarefas ficará indisponível. Não há redundância ou um sistema de backup imediato para assumir as operações.
+
+### 2. Escalabilidade Vertical Limitada
+
+A escalabilidade desta arquitetura é primariamente vertical.
+O que significa: Para lidar com um aumento no número de usuários ou requisições, a única abordagem viável é adicionar mais recursos (CPU, RAM, armazenamento) à máquina que hospeda o servidor. Este modelo, conhecido como scale-up, é caro e possui um limite físico. A arquitetura não suporta nativamente a escalabilidade horizontal (scale-out), que seria adicionar mais servidores para distribuir a carga de trabalho, uma abordagem mais flexível e econômica em larga escala.
+
+### 3. Estado Centralizado
+
+O sistema possui um estado de aplicação centralizado.
+O que significa: Todos os dados das tarefas e dos usuários são armazenados em um único banco de dados SQLite. Essa centralização garante consistência, mas pode se tornar um gargalo de performance (bottleneck). Com um alto volume de operações de leitura e escrita simultâneas, o acesso ao banco de dados pode retardar o tempo de resposta de toda a aplicação, afetando a experiência de todos os usuários.
+
+### 4. Sem Distribuição de Carga
+
+Não há um mecanismo para distribuição de carga.
+O que significa: Como existe apenas uma instância do servidor, todas as requisições de todos os clientes são direcionadas para o mesmo processo. Em momentos de pico, o servidor pode ficar sobrecarregado, aumentando a latência das respostas ou até mesmo começando a recusar conexões. Arquiteturas mais robustas utilizam load balancers para distribuir o tráfego de entrada entre múltiplos servidores, garantindo que nenhum deles fique sobrecarregado.
+
