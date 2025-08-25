@@ -4,12 +4,14 @@ const Task = require('../models/Task');
 const database = require('../database/database');
 const { authMiddleware } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
+const { userRateLimiter } = require('../middleware/rateLimiter');
 const cache = require('memory-cache');
 
 const router = express.Router();
 
 // Todas as rotas requerem autenticação
 router.use(authMiddleware);
+router.use(userRateLimiter);
 
 const clearUserTaskCache = (userId) => {
     const keys = cache.keys();
